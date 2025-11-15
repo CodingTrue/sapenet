@@ -143,3 +143,27 @@ class Program:
             pointer += size
 
         queue.finish()
+
+    @staticmethod
+    def evaluate_tensor(tensor: Tensor):
+        if tensor.context().is_constant(): return tensor._data
+
+        compute_graph = []
+        _build_compute_graph(tensor=tensor, compute_graph=compute_graph)
+
+        Program(compute_graph=compute_graph).build().run()
+
+        return tensor._data
+
+def _build_compute_graph(tensor: Tensor, compute_graph: list[ComputeGraphEntry]):
+    ctx = tensor.context()
+    if ctx.is_constant(): return
+
+    _build_compute_graph(tensor=ctx._left, compute_graph=compute_graph)
+    _build_compute_graph(tensor=ctx._right, compute_graph=compute_graph)
+
+    compute_graph.append(ComputeGraphEntry(
+        function_name=ctx._operation.name.lower(),
+        arguments=(ctx._left, ctx._right),
+        output=tensor
+    ))
