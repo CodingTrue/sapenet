@@ -119,7 +119,7 @@ class Program:
             else: work_tensors.append(entry)
 
         constant_data = np.concatenate([tensor._data for tensor, _ in constant_tensors], dtype=Tensor.FLOAT)
-        work_data = np.zeros(constant_data.size, dtype=Tensor.FLOAT)
+        work_data = np.zeros(sum([size for _, size in work_tensors]), dtype=Tensor.FLOAT)
 
         min_elements = np.min((constant_data.shape, work_data.shape))
 
