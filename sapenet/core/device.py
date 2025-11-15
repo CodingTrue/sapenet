@@ -17,6 +17,7 @@ class Device:
             self._device = cl_devices[0]
 
         self._context = cl.Context(devices=[self._device])
+        self._queue = cl.CommandQueue(self._context, device=self._device)
 
     @classmethod
     def default(cls, cl_device: Optional[cl.Device] = None) -> Device:
