@@ -55,7 +55,7 @@ class Program:
                 if tensor == entry.output:
                     tensor._data = np.zeros(entry.arguments[0].size(), dtype=Tensor.FLOAT)
 
-                is_constant = tensor.context().is_constant()
+                is_constant = tensor.context().is_constant
 
                 buffer = 'constant_data' if is_constant else 'work_data'
                 buffer_index = constant_offset if is_constant else work_offset
@@ -96,7 +96,7 @@ class Program:
                 offsets.append(str(tensor_buffer.offset))
 
                 if not tensor in entry.arguments: continue
-                argument_variant += 'c' if tensor.context().is_constant() else 'g'
+                argument_variant += 'c' if tensor.context().is_constant else 'g'
 
             body.append(f"_{entry.function_name}_{argument_variant}(G_ID, {', '.join(arguments)}, {', '.join(offsets)}, {self.get_tensor_data(tensor=entry.arguments[0]).size});")
         source = '\n'.join(read_kernel(path=path) for path in BUILTIN_DEPEDENCIES).replace('$BODY_SECTION', '\n\t'.join(body))
@@ -146,7 +146,7 @@ class Program:
 
     @staticmethod
     def evaluate_tensor(tensor: Tensor):
-        if tensor.context().is_constant(): return tensor._data
+        if tensor.context().is_constant: return tensor._data
 
         compute_graph = []
         _build_compute_graph(tensor=tensor, compute_graph=compute_graph)
@@ -157,7 +157,7 @@ class Program:
 
 def _build_compute_graph(tensor: Tensor, compute_graph: list[ComputeGraphEntry]):
     ctx = tensor.context()
-    if ctx.is_constant(): return
+    if ctx.is_constant: return
 
     _build_compute_graph(tensor=ctx._left, compute_graph=compute_graph)
     _build_compute_graph(tensor=ctx._right, compute_graph=compute_graph)

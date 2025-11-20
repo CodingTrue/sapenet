@@ -19,6 +19,16 @@ class Device:
         self._context = cl.Context(devices=[self._device])
         self._queue = cl.CommandQueue(self._context, device=self._device)
 
+    def __repr__(self):
+        return f"Device({self.name})"
+
+    @property
+    def name(self) -> str:
+        try:
+            return self._device.get_info(cl.device_info.BOARD_NAME_AMD)
+        except:
+            return self._device.name
+
     @classmethod
     def default(cls, cl_device: Optional[cl.Device] = None) -> Device:
         if cl_device:
