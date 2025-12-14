@@ -2,12 +2,6 @@ import numpy as np
 from typing import Optional, Sequence
 from enum import Enum
 
-class OperationType(Enum):
-    ADD         = 'add'
-    SUBTRACT    = 'subtract'
-    MULTIPLY    = 'multiply'
-    DIVIDE      = 'divide'
-
 class Context:
     def __init__(self, is_constant: bool = False, left: Optional[Tensor] = None, right: Optional[Tensor] = None, operation: Optional[OperationType] = None):
         self._is_constant = is_constant
@@ -41,8 +35,10 @@ class Tensor:
         self._data = data
         self._compute_context = Context.constant()
 
+        self._projected_size = -1
+
     def size(self):
-        return self._data.size if isinstance(self._data, np.ndarray) else -1
+        return self._data.size if isinstance(self._data, np.ndarray) else self._projected_size
 
     def context(self) -> Context:
         return self._compute_context
@@ -51,10 +47,10 @@ class Tensor:
     def random_tensor(size: int|Sequence[int]) -> Tensor:
         return Tensor(data=np.random.random(size=size))
 
-    def __add__(self, other): return _tensor_bin_op(a=self, b=other, operation=OperationType.ADD)
-    def __sub__(self, other): return _tensor_bin_op(a=self, b=other, operation=OperationType.SUBTRACT)
-    def __mul__(self, other): return _tensor_bin_op(a=self, b=other, operation=OperationType.MULTIPLY)
-    def __truediv__(self, other): return _tensor_bin_op(a=self, b=other, operation=OperationType.DIVIDE)
+    def __add__(self, other): return _tensor_bin_op(a=self, b=other, operation='add')
+    def __sub__(self, other): return _tensor_bin_op(a=self, b=other, operation='subtract')
+    def __mul__(self, other): return _tensor_bin_op(a=self, b=other, operation='multiply')
+    def __truediv__(self, other): return _tensor_bin_op(a=self, b=other, operation='divide')
 
 def _tensor_bin_op(a: Tensor, b: Tensor, operation: OperationType) -> Tensor:
     t = Tensor()

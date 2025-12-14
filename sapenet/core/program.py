@@ -1,23 +1,11 @@
 import pyopencl as cl
 import numpy as np
 from dataclasses import dataclass
-from importlib import resources
 
+from sapenet.utils import read_kernel
 from .device import Device
 from .tensor import Tensor
-from sapenet import kernels
-
-BUILTIN_DEPEDENCIES = (
-    "builtin_lib.cl",
-    "builtin_add.cl",
-    "builtin_subtract.cl",
-    "builtin_multiply.cl",
-    "builtin_divide.cl",
-    "base_kernel.cl"
-)
-
-def read_kernel(path: str) -> str:
-    return (resources.files(kernels) / path).read_text()
+from .kernel import KernelRegistry
 
 @dataclass
 class ComputeGraphEntry:
@@ -26,7 +14,13 @@ class ComputeGraphEntry:
     output: Tensor
 
 @dataclass
-class TensorData:
+class DataBufferAttributes:
+    buffer_name: str
+    elements: int = 0
+    offset: int = 0
+
+@dataclass
+class TensorAttributes:
     buffer: str
     buffer_index: int
     size: int
@@ -34,72 +28,66 @@ class TensorData:
     is_constant: bool
 
     def to_buffer_reference(self):
-        return f"{self.buffer}"
+        return self.buffer
 
 class Program:
     def __init__(self, compute_graph: list[ComputeGraphEntry]):
         self._compute_graph = compute_graph
-        self._tensor_map = {}
 
         self._program = None
+        self._tensor_map = {}
+        
+    def build(self):
+        kernel_registry = KernelRegistry.instance()
 
-        self.make_tensor_map()
+        injected_dependencies = []
+        kernel_source = []
+        body_source = []
 
-    def make_tensor_map(self):
-        constant_elements, work_elements = 0, 0
-        constant_offset, work_offset = 0, 0
+        constant_buffer_attributes = DataBufferAttributes(buffer_name="constant_data")
+        work_buffer_attributes = DataBufferAttributes(buffer_name="work_data")
 
         for entry in self._compute_graph:
-            for tensor in entry.arguments + (entry.output,):
-                if tensor in self._tensor_map: continue
-                if tensor == entry.output:
-                    tensor._data = np.zeros(entry.arguments[0].size(), dtype=Tensor.FLOAT)
+            current_kernel = kernel_registry.get_kernel(identifier=entry.function_name)
+            current_kernel_source, current_kernel_identifier = current_kernel.get_kernel_variant(memory_regions=[tensor.context().is_constant for tensor in entry.arguments])
 
+            for tensor in (*entry.arguments, entry.output):
+                if tensor in self._tensor_map: continue
                 is_constant = tensor.context().is_constant
 
-                buffer = 'constant_data' if is_constant else 'work_data'
-                buffer_index = constant_offset if is_constant else work_offset
-                size = tensor._data.size
-                offset = constant_offset if is_constant else work_offset
+                data_buffer_attributes = constant_buffer_attributes if is_constant else work_buffer_attributes
+                size = current_kernel.get_buffer_output_size(arguments=entry.arguments) if tensor == entry.output else tensor.size()
 
-                self._tensor_map[tensor] = TensorData(
-                    buffer=buffer,
-                    buffer_index=buffer_index,
+                self._tensor_map[tensor] = TensorAttributes(
+                    buffer=data_buffer_attributes.buffer_name,
+                    buffer_index=data_buffer_attributes.elements,
                     size=size,
-                    offset=offset,
+                    offset=data_buffer_attributes.offset,
                     is_constant=is_constant
                 )
+                tensor._projected_size = size
 
-                if is_constant:
-                    constant_elements += 1
-                    constant_offset += size
-                else:
-                    work_elements += 1
-                    work_offset += size
+                data_buffer_attributes.offset += size
+                data_buffer_attributes.elements += 1
 
-    def get_tensor_data(self, tensor: Tensor) -> TensorData:
-        if not tensor in self._tensor_map: raise ValueError(f"Tensor '{tensor}' does not exist in tensor map.")
-        return self._tensor_map[tensor]
+            kernel_call_arguments = (
+                'G_ID',
+                *(self._tensor_map[tensor].buffer for tensor in entry.arguments),
+                self._tensor_map[entry.output].buffer,
+                *(str(self._tensor_map[tensor].offset) for tensor in (*entry.arguments, entry.output)),
+                str(self._tensor_map[entry.output].size)
+            )
+            kernel_call = f"{current_kernel_identifier}({', '.join(kernel_call_arguments)});"
 
-    def build(self):
-        body = []
+            if not current_kernel_identifier in injected_dependencies:
+                kernel_source.append(current_kernel_source)
+                injected_dependencies.append(current_kernel_identifier)
+            body_source.append(kernel_call)
 
-        for entry in self._compute_graph:
-            arguments = []
-            argument_variant = ''
-            offsets = []
-
-            for tensor in entry.arguments + (entry.output,):
-                tensor_buffer = self.get_tensor_data(tensor=tensor)
-
-                arguments.append(tensor_buffer.to_buffer_reference())
-                offsets.append(str(tensor_buffer.offset))
-
-                if not tensor in entry.arguments: continue
-                argument_variant += 'c' if tensor.context().is_constant else 'g'
-
-            body.append(f"_{entry.function_name}_{argument_variant}(G_ID, {', '.join(arguments)}, {', '.join(offsets)}, {self.get_tensor_data(tensor=entry.arguments[0]).size});")
-        source = '\n'.join(read_kernel(path=path) for path in BUILTIN_DEPEDENCIES).replace('$BODY_SECTION', '\n\t'.join(body))
+        kernel_source.append(
+            read_kernel(path="base_kernel.cl").replace('$BODY_SECTION', '\n\t'.join(body_source))
+        )
+        source = '\n'.join(kernel_source)
 
         self._program = cl.Program(
             Device.default()._context,
@@ -112,37 +100,34 @@ class Program:
         if not self._program: raise RuntimeError("Program needs to be builded before running.")
 
         constant_tensors, work_tensors = [], []
-        for tensor, tensor_data in self._tensor_map.items():
-            entry = (tensor, tensor_data.size)
+        for tensor in self._tensor_map:
+            (constant_tensors if self._tensor_map[tensor].is_constant else work_tensors).append(tensor)
 
-            if tensor_data.is_constant: constant_tensors.append(entry)
-            else: work_tensors.append(entry)
+        constant_data = np.concatenate([tensor._data for tensor in constant_tensors])
+        work_data = np.zeros(sum(tensor.size() for tensor in work_tensors), dtype=Tensor.FLOAT)
 
-        constant_data = np.concatenate([tensor._data for tensor, _ in constant_tensors], dtype=Tensor.FLOAT)
-        work_data = np.zeros(sum([size for _, size in work_tensors]), dtype=Tensor.FLOAT)
+        _f_copy_host_ptr = cl.mem_flags.COPY_HOST_PTR
+        _f_ro = cl.mem_flags.READ_ONLY
 
-        min_elements = np.min((constant_data.shape, work_data.shape))
+        device = Device.default()
+        ctx = device._context
+        queue = device._queue
+        compute_kernel = self._program.compute_kernel
 
-        constant_buffer = cl.Buffer(Device.default()._context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=constant_data)
-        work_buffer = cl.Buffer(Device.default()._context, cl.mem_flags.COPY_HOST_PTR, hostbuf=work_data)
+        constant_data_buffer = cl.Buffer(context=ctx, flags=_f_copy_host_ptr | _f_ro, hostbuf=constant_data)
+        work_data_buffer = cl.Buffer(context=ctx, flags=_f_copy_host_ptr, hostbuf=work_data)
 
-        knl: cl.Kernel = self._program.compute_kernel
-        knl.set_args(
-            constant_buffer,
-            work_buffer
-        )
+        compute_kernel.set_args(constant_data_buffer, work_data_buffer)
+        cl.enqueue_nd_range_kernel(queue=queue, kernel=compute_kernel, global_work_size=(max(tensor.size() for tensor in work_tensors), 1), local_work_size=None)
 
-        queue = Device.default()._queue
-
-        cl.enqueue_nd_range_kernel(queue, knl, (min_elements, 1), None).wait()
-        cl.enqueue_copy(queue, work_data, work_buffer).wait()
+        cl.enqueue_copy(queue, work_data, work_data_buffer)
 
         pointer = 0
-        for tensor, size in work_tensors:
+        for tensor in work_tensors:
+            size = tensor.size()
             tensor._data = work_data[pointer:pointer + size]
-            pointer += size
 
-        queue.finish()
+            pointer += size
 
     @staticmethod
     def evaluate_tensor(tensor: Tensor):
@@ -163,7 +148,7 @@ def _build_compute_graph(tensor: Tensor, compute_graph: list[ComputeGraphEntry])
     _build_compute_graph(tensor=ctx._right, compute_graph=compute_graph)
 
     compute_graph.append(ComputeGraphEntry(
-        function_name=ctx._operation.name.lower(),
+        function_name=ctx._operation,
         arguments=(ctx._left, ctx._right),
         output=tensor
     ))
