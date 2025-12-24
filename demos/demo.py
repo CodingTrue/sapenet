@@ -22,6 +22,7 @@ e = c * d
 # Evaluate top level tensor
 e_value = Program.evaluate_tensor(tensor=e) # returns value of evaluated tensor
 
-print(f"{c._data = }") # [7.  7.  7.  7.   7.  7.]
-print(f"{d._data = }") # [13. 12. 11. 10.  9.  8.]
-print(f"{e._data = }") # [91. 84. 77. 70. 63. 56.]
+print(f"{c.data = }") # [7.  7.  7.  7.   7.  7.]
+print(f"{d.data = }") # [13. 12. 11. 10.  9.  8.]
+print(f"{e.data = }") # [91. 84. 77. 70. 63. 56.]
+print(f"{e_value = }") # [91. 84. 77. 70. 63. 56.]
