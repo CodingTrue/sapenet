@@ -3,7 +3,7 @@ from typing import Optional, Sequence
 from enum import Enum
 
 class TensorContext:
-    def __init__(self, is_constant: bool = False, left: Optional[Tensor] = None, right: Optional[Tensor] = None, operation: Optional[OperationType] = None):
+    def __init__(self, is_constant: bool = False, left: Optional[Tensor] = None, right: Optional[Tensor] = None, operation: Optional[str] = None):
         self._is_constant = is_constant
 
         if not is_constant and not all((left, right)): raise ValueError("Left and right tensor must be set in non-constant contexts.")
@@ -45,7 +45,7 @@ class Tensor:
     def __mul__(self, other): return _tensor_bin_op(a=self, b=other, operation='multiply')
     def __truediv__(self, other): return _tensor_bin_op(a=self, b=other, operation='divide')
 
-def _tensor_bin_op(a: Tensor, b: Tensor, operation: OperationType) -> Tensor:
+def _tensor_bin_op(a: Tensor, b: Tensor, operation: str) -> Tensor:
     t = Tensor()
 
     t._tensor_context = TensorContext(is_constant=False, left=a, right=b, operation=operation)
