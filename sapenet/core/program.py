@@ -110,7 +110,7 @@ class Program:
         queue = device.queue
 
         constant_data = np.concatenate([tensor.data for tensor in self._constant_tensors])
-        work_data = np.zeros(sum(tensor.size for tensor in self._constant_tensors), dtype=Tensor.FLOAT)
+        work_data = np.zeros(sum(tensor.size for tensor in self._work_tensors), dtype=Tensor.FLOAT)
 
         constant_data_buffer = cl.Buffer(context=ctx, flags=F_COPY_HOST_PTR | F_RO, hostbuf=constant_data)
         work_data_buffer = cl.Buffer(context=ctx, flags=F_COPY_HOST_PTR, hostbuf=work_data)
