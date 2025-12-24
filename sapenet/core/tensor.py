@@ -2,7 +2,7 @@ import numpy as np
 from typing import Optional, Sequence
 from enum import Enum
 
-class Context:
+class TensorContext:
     def __init__(self, is_constant: bool = False, left: Optional[Tensor] = None, right: Optional[Tensor] = None, operation: Optional[OperationType] = None):
         self._is_constant = is_constant
 
@@ -12,18 +12,11 @@ class Context:
         self._right = right
         self._operation = operation
 
-    @property
     def is_constant(self): return self._is_constant
-
-    def ready(self, status: Optional[bool] = None) -> bool:
-        if status == None: return self._ready
-        self._ready = status
-
-        return self._ready
 
     @staticmethod
     def constant():
-        return Context(is_constant=True, left=None, right=None)
+        return TensorContext(is_constant=True, left=None, right=None)
 
 class Tensor:
     FLOAT = np.float32
@@ -33,15 +26,15 @@ class Tensor:
         if isinstance(data, np.ndarray) and data.dtype not in (Tensor.FLOAT, Tensor.INT): data = Tensor.FLOAT(data)
 
         self._data = data
-        self._compute_context = Context.constant()
+        self._tensor_context = TensorContext.constant()
 
         self._projected_size = -1
 
     def size(self):
         return self._data.size if isinstance(self._data, np.ndarray) else self._projected_size
 
-    def context(self) -> Context:
-        return self._compute_context
+    def context(self) -> TensorContext:
+        return self._tensor_context
 
     @staticmethod
     def random_tensor(size: int|Sequence[int]) -> Tensor:
@@ -55,5 +48,5 @@ class Tensor:
 def _tensor_bin_op(a: Tensor, b: Tensor, operation: OperationType) -> Tensor:
     t = Tensor()
 
-    t._compute_context = Context(is_constant=False, left=a, right=b, operation=operation)
+    t._tensor_context = TensorContext(is_constant=False, left=a, right=b, operation=operation)
     return t
