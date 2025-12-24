@@ -6,20 +6,20 @@ from sapenet.utils import read_kernel
 
 class Kernel:
     def __init__(self, source_path: str, identifier: str):
-        self._source = read_kernel(path=source_path)
-        self._identifier = identifier
+        self.source = read_kernel(path=source_path)
+        self.identifier = identifier
 
     def get_buffer_output_size(self, arguments: Sequence[Tensor]) -> int:
-        return min([tensor.size() for tensor in arguments])
+        return min([tensor.size for tensor in arguments])
 
     def get_kernel_variant(self, memory_regions: Sequence[bool]) -> tuple[str, str]:
         region_names = ['constant' if region else 'global' for region in memory_regions]
         region_alias = ''.join(name[0] for name in region_names)
 
-        kernel_identifier = f'_{self._identifier}_{region_alias}'
+        kernel_identifier = f'_{self.identifier}_{region_alias}'
 
-        sub0 = re.sub(r'memory_region', lambda _: region_names.pop(0), string=self._source, count=len(region_names))
-        sub1 = re.sub(f'{self._identifier}', kernel_identifier, string=sub0)
+        sub0 = re.sub(r'memory_region', lambda _: region_names.pop(0), string=self.source, count=len(region_names))
+        sub1 = re.sub(f'{self.identifier}', kernel_identifier, string=sub0)
 
         return sub1, kernel_identifier
 
@@ -30,7 +30,7 @@ class KernelRegistry:
         self._entries = {}
 
     def register(self, kernel: Kernel) -> KernelRegistry:
-        self._entries[kernel._identifier] = kernel
+        self._entries[kernel.identifier] = kernel
         return self
 
     def get_kernel(self, identifier: str) -> Kernel:

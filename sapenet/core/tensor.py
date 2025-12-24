@@ -4,15 +4,13 @@ from enum import Enum
 
 class TensorContext:
     def __init__(self, is_constant: bool = False, left: Optional[Tensor] = None, right: Optional[Tensor] = None, operation: Optional[str] = None):
-        self._is_constant = is_constant
-
         if not is_constant and not all((left, right)): raise ValueError("Left and right tensor must be set in non-constant contexts.")
 
-        self._left = left
-        self._right = right
-        self._operation = operation
+        self.is_constant = is_constant
 
-    def is_constant(self): return self._is_constant
+        self.left = left
+        self.right = right
+        self.operation = operation
 
     @staticmethod
     def constant():
@@ -25,16 +23,14 @@ class Tensor:
     def __init__(self, data: Optional[np.ndarray] = None):
         if isinstance(data, np.ndarray) and data.dtype not in (Tensor.FLOAT, Tensor.INT): data = Tensor.FLOAT(data)
 
-        self._data = data
-        self._tensor_context = TensorContext.constant()
+        self.data = data
+        self.context = TensorContext.constant()
 
         self._projected_size = -1
 
+    @property
     def size(self):
-        return self._data.size if isinstance(self._data, np.ndarray) else self._projected_size
-
-    def context(self) -> TensorContext:
-        return self._tensor_context
+        return self.data.size if isinstance(self.data, np.ndarray) else self._projected_size
 
     @staticmethod
     def random_tensor(size: int|Sequence[int]) -> Tensor:
@@ -48,5 +44,5 @@ class Tensor:
 def _tensor_bin_op(a: Tensor, b: Tensor, operation: str) -> Tensor:
     t = Tensor()
 
-    t._tensor_context = TensorContext(is_constant=False, left=a, right=b, operation=operation)
+    t.context = TensorContext(is_constant=False, left=a, right=b, operation=operation)
     return t

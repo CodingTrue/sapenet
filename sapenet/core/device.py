@@ -10,14 +10,14 @@ class Device:
 
     def __init__(self, cl_device: Optional[cl.Device] = None):
         if cl_device:
-            self._device = cl_device
+            self.device = cl_device
         else:
             cl_devices = Device.devices(device_type=Device.ALL)
             if len(cl_devices) == 0: raise RuntimeError("No OpenCL compatible devices found.")
-            self._device = cl_devices[0]
+            self.device = cl_devices[0]
 
-        self._context = cl.Context(devices=[self._device])
-        self._queue = cl.CommandQueue(self._context, device=self._device)
+        self.context = cl.Context(devices=[self.device])
+        self.queue = cl.CommandQueue(self.context, device=self.device)
 
     def __repr__(self):
         return f"Device({self.name})"
@@ -25,9 +25,9 @@ class Device:
     @property
     def name(self) -> str:
         try:
-            return self._device.get_info(cl.device_info.BOARD_NAME_AMD)
+            return self.device.get_info(cl.device_info.BOARD_NAME_AMD)
         except:
-            return self._device.name
+            return self.device.name
 
     @classmethod
     def default(cls, cl_device: Optional[cl.Device] = None) -> Device:
