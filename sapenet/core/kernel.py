@@ -19,7 +19,7 @@ class Kernel:
         kernel_identifier = f'_{self.identifier}_{region_alias}'
 
         sub0 = re.sub(r'memory_region', lambda _: region_names.pop(0), string=self.source, count=len(region_names))
-        sub1 = re.sub(f'{self.identifier}', kernel_identifier, string=sub0)
+        sub1 = re.sub(f'{self.identifier}', kernel_identifier, string=sub0, count=1)
 
         return sub1, kernel_identifier
 
