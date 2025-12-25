@@ -60,3 +60,4 @@ _kernel_registry.register(kernel=Kernel(identifier='add', source_path="builtin_a
 _kernel_registry.register(kernel=Kernel(identifier='subtract', source_path="builtin_subtract.cl"))
 _kernel_registry.register(kernel=Kernel(identifier='multiply', source_path="builtin_multiply.cl"))
 _kernel_registry.register(kernel=Kernel(identifier='divide', source_path="builtin_divide.cl"))
+_kernel_registry.register(kernel=Kernel(identifier='negate', source_path="builtin_negate.cl"))

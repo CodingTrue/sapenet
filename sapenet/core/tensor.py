@@ -40,6 +40,11 @@ class Tensor:
     def __mul__(self, other): return _tensor_operation(children=(self, other), operation='multiply')
     def __truediv__(self, other): return _tensor_operation(children=(self, other), operation='divide')
 
+    def __neg__(self):
+        if self.context.is_constant: return Tensor(data=-self.data)
+
+        return _tensor_operation(children=(self,), operation="negate")
+
 def _tensor_operation(children: Sequence[Tensor], operation: str) -> Tensor:
     t = Tensor()
 
