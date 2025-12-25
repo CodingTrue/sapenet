@@ -4,6 +4,8 @@ from typing import Sequence
 from sapenet.core import Tensor
 from sapenet.utils import read_kernel
 
+GLOBAL_ID = 'G_ID'
+
 class Kernel:
     def __init__(self, source_path: str, identifier: str):
         self.source = read_kernel(path=source_path)
@@ -22,6 +24,14 @@ class Kernel:
         sub1 = re.sub(f'{self.identifier}', kernel_identifier, string=sub0, count=1)
 
         return sub1, kernel_identifier
+
+    def get_call_arguments(self, arguments: Sequence[Tensor], output: Tensor, tensor_map: dict[Tensor]) -> str:
+        return (
+            GLOBAL_ID,
+            *(tensor_map[tensor].buffer for tensor in (*arguments, output)),
+            *(str(tensor_map[tensor].offset) for tensor in (*arguments, output)),
+            str(tensor_map[output].size)
+        )
 
 class KernelRegistry:
     _instance = None

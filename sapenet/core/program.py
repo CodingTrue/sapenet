@@ -76,12 +76,10 @@ class Program:
 
                 (self._constant_tensors if is_constant else self._work_tensors).append(tensor)
 
-            kernel_call_arguments = (
-                'G_ID',
-                *(tensor_map[tensor].buffer for tensor in entry.arguments),
-                tensor_map[entry.output].buffer,
-                *(str(tensor_map[tensor].offset) for tensor in (*entry.arguments, entry.output)),
-                str(tensor_map[entry.output].size)
+            kernel_call_arguments = current_kernel.get_call_arguments(
+                arguments=entry.arguments,
+                output=entry.output,
+                tensor_map=tensor_map
             )
             kernel_call = f"{current_kernel_identifier}({', '.join(kernel_call_arguments)});"
 
