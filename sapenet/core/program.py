@@ -142,11 +142,11 @@ def _build_compute_graph(tensor: Tensor, compute_graph: list[ComputeGraphEntry])
     ctx = tensor.context
     if ctx.is_constant: return
 
-    _build_compute_graph(tensor=ctx.left, compute_graph=compute_graph)
-    _build_compute_graph(tensor=ctx.right, compute_graph=compute_graph)
+    for child in ctx.children:
+        _build_compute_graph(tensor=child, compute_graph=compute_graph)
 
     compute_graph.append(ComputeGraphEntry(
         function_name=ctx.operation,
-        arguments=(ctx.left, ctx.right),
+        arguments=ctx.children,
         output=tensor
     ))

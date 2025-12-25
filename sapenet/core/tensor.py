@@ -3,18 +3,17 @@ from typing import Optional, Sequence
 from enum import Enum
 
 class TensorContext:
-    def __init__(self, is_constant: bool = False, left: Optional[Tensor] = None, right: Optional[Tensor] = None, operation: Optional[str] = None):
-        if not is_constant and not all((left, right)): raise ValueError("Left and right tensor must be set in non-constant contexts.")
+    def __init__(self, is_constant: bool = False, children: Optional[Sequence[Tensor]] = [], operation: Optional[str] = None):
+        if not is_constant and not children: raise ValueError("Tensor children must be set in non-constant contexts.")
 
         self.is_constant = is_constant
 
-        self.left = left
-        self.right = right
+        self.children = children
         self.operation = operation
 
     @staticmethod
     def constant():
-        return TensorContext(is_constant=True, left=None, right=None)
+        return TensorContext(is_constant=True, children=[])
 
 class Tensor:
     FLOAT = np.float32
@@ -36,13 +35,13 @@ class Tensor:
     def random_tensor(size: int|Sequence[int]) -> Tensor:
         return Tensor(data=np.random.random(size=size))
 
-    def __add__(self, other): return _tensor_bin_op(a=self, b=other, operation='add')
-    def __sub__(self, other): return _tensor_bin_op(a=self, b=other, operation='subtract')
-    def __mul__(self, other): return _tensor_bin_op(a=self, b=other, operation='multiply')
-    def __truediv__(self, other): return _tensor_bin_op(a=self, b=other, operation='divide')
+    def __add__(self, other): return _tensor_operation(children=(self, other), operation='add')
+    def __sub__(self, other): return _tensor_operation(children=(self, other), operation='subtract')
+    def __mul__(self, other): return _tensor_operation(children=(self, other), operation='multiply')
+    def __truediv__(self, other): return _tensor_operation(children=(self, other), operation='divide')
 
-def _tensor_bin_op(a: Tensor, b: Tensor, operation: str) -> Tensor:
+def _tensor_operation(children: Sequence[Tensor], operation: str) -> Tensor:
     t = Tensor()
 
-    t.context = TensorContext(is_constant=False, left=a, right=b, operation=operation)
+    t.context = TensorContext(is_constant=False, children=children, operation=operation)
     return t
