@@ -1,20 +1,27 @@
 import re
+from enum import Enum
 from typing import Sequence
 
 from sapenet.core import Tensor
 from sapenet.utils import read_kernel
 
-GLOBAL_ID = 'G_ID'
+X_ID = 'X_ID'
+Y_ID = 'Y_ID'
+
+class KernelDimension(Enum):
+    SINGLE_DIM = 1
+    DOUBLE_DIM = 2
 
 class Kernel:
-    def __init__(self, source_path: str, identifier: str):
+    def __init__(self, source_path: str, identifier: str, dimension: KernelDimension = KernelDimension.SINGLE_DIM):
         self.source = read_kernel(path=source_path)
         self.identifier = identifier
+        self.dimension = dimension
 
     def get_buffer_output_size(self, arguments: Sequence[Tensor]) -> int:
         return min([tensor.size for tensor in arguments])
 
-    def get_kernel_variant(self, memory_regions: Sequence[bool]) -> tuple[str, str]:
+    def get_variant(self, memory_regions: Sequence[bool]) -> tuple[str, str]:
         region_names = ['constant' if region else 'global' for region in memory_regions]
         region_alias = ''.join(name[0] for name in region_names)
 
@@ -25,9 +32,9 @@ class Kernel:
 
         return sub1, kernel_identifier
 
-    def get_call_arguments(self, arguments: Sequence[Tensor], output: Tensor, tensor_map: dict[Tensor]) -> str:
+    def get_call_arguments(self, arguments: Sequence[Tensor], output: Tensor, tensor_map: dict[Tensor]) -> Sequence[str]:
         return (
-            GLOBAL_ID,
+            X_ID,
             *(tensor_map[tensor].buffer for tensor in (*arguments, output)),
             *(str(tensor_map[tensor].offset) for tensor in (*arguments, output)),
             str(tensor_map[output].size)
