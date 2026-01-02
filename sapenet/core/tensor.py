@@ -26,10 +26,15 @@ class Tensor:
         self.context = TensorContext.constant()
 
         self._projected_size = -1
+        self._projected_shape = (-1, -1)
 
     @property
     def size(self):
         return self.data.size if isinstance(self.data, np.ndarray) else self._projected_size
+
+    @property
+    def shape(self):
+        return self.data.shape if isinstance(self.data, np.ndarray) else self._projected_shape
 
     @staticmethod
     def random_tensor(size: int|Sequence[int]) -> Tensor:
