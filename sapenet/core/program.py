@@ -6,7 +6,7 @@ from typing import Sequence
 from sapenet.utils import read_kernel
 from .device import Device
 from .tensor import Tensor
-from .kernel import KernelRegistry, Kernel, KernelDimension
+from .kernel import KernelRegistry, Kernel
 
 F_COPY_HOST_PTR = cl.mem_flags.COPY_HOST_PTR
 F_RO = cl.mem_flags.READ_ONLY
