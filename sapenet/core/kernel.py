@@ -8,6 +8,9 @@ from sapenet.utils import read_kernel
 X_ID = 'X_ID'
 Y_ID = 'Y_ID'
 
+X_SIZE = 'X_SIZE'
+Y_SIZE = 'Y_SIZE'
+
 class KernelDimension(Enum):
     SINGLE_DIM = 1
     DOUBLE_DIM = 2
@@ -18,8 +21,17 @@ class Kernel:
         self.identifier = identifier
         self.dimension = dimension
 
-    def get_buffer_output_size(self, arguments: Sequence[Tensor]) -> int:
+    def get_output_buffer_size(self, arguments: Sequence[Tensor]) -> int:
         return min([tensor.size for tensor in arguments])
+
+    def get_output_buffer_shape(self, arguments: Sequence[Tensor]) -> tuple[int]:
+        return (self.get_output_buffer_size(arguments=arguments),)
+
+    def get_work_buffer_size(self, arguments: Sequence[Tensor]) -> int:
+        return 0
+
+    def get_work_size(self, arguments: Sequence[Tensor]) -> tuple[int]:
+        return (self.get_output_buffer_size(arguments=arguments),)
 
     def get_variant(self, memory_regions: Sequence[bool]) -> tuple[str, str]:
         region_names = ['constant' if region else 'global' for region in memory_regions]
@@ -37,7 +49,7 @@ class Kernel:
             X_ID,
             *(tensor_map[tensor].buffer for tensor in (*arguments, output)),
             *(str(tensor_map[tensor].offset) for tensor in (*arguments, output)),
-            str(tensor_map[output].size)
+            str(tensor_map[output].work_space_size)
         )
 
 class KernelRegistry:

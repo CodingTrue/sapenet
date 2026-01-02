@@ -52,7 +52,9 @@ class TensorAttributes:
     buffer: str
     buffer_index: int
     size: int
+    work_space_size: int
     offset: int
+    shape: tuple[int]
 
     def to_buffer_reference(self):
         return self.buffer
@@ -79,15 +81,25 @@ class Program:
             is_constant = tensor.context.is_constant
 
             data_buffer_attributes = constant_buffer_attributes if is_constant else work_buffer_attributes
-            size = current_kernel.get_buffer_output_size(arguments=compute_graph_entry.arguments) if tensor == compute_graph_entry.output else tensor.size
+
+            size, shape, work_space_size = -1, (-1, -1), 0
+            if tensor == compute_graph_entry.output:
+                size = current_kernel.get_output_buffer_size(arguments=compute_graph_entry.arguments)
+                shape = current_kernel.get_output_buffer_shape(arguments=compute_graph_entry.arguments)
+                work_space_size = current_kernel.get_work_buffer_size(arguments=compute_graph_entry.arguments) + size
+            else:
+                size, shape = tensor.size, tensor.shape
 
             self._tensor_map[tensor] = TensorAttributes(
                 buffer=data_buffer_attributes.buffer_name,
                 buffer_index=data_buffer_attributes.elements,
                 size=size,
+                work_space_size=work_space_size,
                 offset=data_buffer_attributes.offset,
+                shape=shape
             )
             tensor._projected_size = size
+            tensor._projected_shape = shape
 
             data_buffer_attributes.offset += size
             data_buffer_attributes.elements += 1
@@ -110,7 +122,7 @@ class Program:
                 current_kernel=current_kernel,
                 constant_buffer_attributes=cks.constant_buffer_attributes,
                 work_buffer_attributes=cks.work_buffer_attributes,
-                compute_graph_entry=entry,
+                compute_graph_entry=entry
             )
 
             call_arguments = current_kernel.get_call_arguments(
@@ -119,7 +131,7 @@ class Program:
                 tensor_map=self._tensor_map
             )
 
-            cks.suggest_work_size(max([tensor.data.shape for tensor in entry.arguments]))
+            cks.suggest_work_size(current_kernel.get_work_size(arguments=entry.arguments))
             cks.code_definitions.append(current_kernel_source)
             cks.body_calls.append(f"{current_kernel_identifier}({', '.join(call_arguments)});")
 
@@ -146,7 +158,7 @@ class Program:
         queue = device.queue
 
         constant_data = np.concatenate([tensor.data.flatten() for tensor in self._constant_tensors])
-        work_data = np.zeros(sum(tensor.size for tensor in self._work_tensors), dtype=Tensor.FLOAT)
+        work_data = np.zeros(sum(self._tensor_map[tensor].work_space_size for tensor in self._work_tensors), dtype=Tensor.FLOAT)
 
         constant_data_buffer = cl.Buffer(context=ctx, flags=F_COPY_HOST_PTR | F_RO, hostbuf=constant_data)
         work_data_buffer = cl.Buffer(context=ctx, flags=F_COPY_HOST_PTR, hostbuf=work_data)
@@ -159,7 +171,7 @@ class Program:
             event = cl.enqueue_nd_range_kernel(
                 queue=queue,
                 kernel=ck.kernel,
-                global_work_size=(max(tensor.size for tensor in self._work_tensors), 1),
+                global_work_size=ck.work_size,
                 local_work_size=None,
                 wait_for=wait_for
             )
@@ -170,9 +182,10 @@ class Program:
         pointer = 0
         for tensor in self._work_tensors:
             size = tensor.size
-            tensor.data = work_data[pointer:pointer + size]
+            work_space_size = self._tensor_map[tensor].work_space_size
+            tensor.data = work_data[pointer + work_space_size - size:pointer + work_space_size]
 
-            pointer += size
+            pointer += work_space_size
 
     @staticmethod
     def evaluate_tensor(tensor: Tensor):
