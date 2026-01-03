@@ -133,7 +133,7 @@ class Program:
 
             cks.suggest_work_size(current_kernel.get_work_size(arguments=entry.arguments))
             cks.code_definitions.append(current_kernel_source)
-            cks.body_calls.append(f"{current_kernel_identifier}({', '.join(call_arguments)});")
+            cks.body_calls.append(f"{current_kernel_identifier}({', '.join(str(arg) for arg in call_arguments)});")
 
             last_kernel_dimension = current_kernel.dimension
 

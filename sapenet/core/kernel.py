@@ -48,8 +48,8 @@ class Kernel:
         return (
             X_ID,
             *(tensor_map[tensor].buffer for tensor in (*arguments, output)),
-            *(str(tensor_map[tensor].offset) for tensor in (*arguments, output)),
-            str(tensor_map[output].work_space_size)
+            *(tensor_map[tensor].offset for tensor in (*arguments, output)),
+            tensor_map[output].work_space_size
         )
 
 class KernelRegistry:
