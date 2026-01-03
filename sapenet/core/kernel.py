@@ -73,6 +73,26 @@ class KernelRegistry:
 
         return cls._instance
 
+class MatmulKernel(Kernel):
+    def get_output_buffer_size(self, arguments: Sequence[Tensor]) -> int:
+        return arguments[0].shape[0] * arguments[1].shape[1]
+
+    def get_output_buffer_shape(self, arguments: Sequence[Tensor]) -> tuple[int]:
+        return (arguments[0].shape[0], arguments[1].shape[1])
+
+    def get_work_size(self, arguments: Sequence[Tensor]) -> tuple[int]:
+        return (arguments[1].shape[1], arguments[0].shape[0])
+
+    def get_call_arguments(self, arguments: Sequence[Tensor], output: Tensor, tensor_map: dict[Tensor]) -> Sequence[str]:
+        return (
+            X_ID,
+            Y_ID,
+            X_SIZE,
+            Y_SIZE,
+            arguments[0].shape[1],
+            *super().get_call_arguments(arguments=arguments, output=output, tensor_map=tensor_map)[2:]
+        )
+
 _kernel_registry = KernelRegistry.instance()
 
 _kernel_registry.register(kernel=Kernel(identifier='add', source_path="builtin_add.cl"))
@@ -80,3 +100,4 @@ _kernel_registry.register(kernel=Kernel(identifier='subtract', source_path="buil
 _kernel_registry.register(kernel=Kernel(identifier='multiply', source_path="builtin_multiply.cl"))
 _kernel_registry.register(kernel=Kernel(identifier='divide', source_path="builtin_divide.cl"))
 _kernel_registry.register(kernel=Kernel(identifier='negate', source_path="builtin_negate.cl"))
+_kernel_registry.register(kernel=MatmulKernel(identifier='matmul', source_path="builtin_matmul.cl", dimension=KernelDimension.DOUBLE_DIM))

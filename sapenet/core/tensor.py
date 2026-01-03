@@ -40,10 +40,16 @@ class Tensor:
     def random_tensor(size: int|Sequence[int]) -> Tensor:
         return Tensor(data=np.random.random(size=size))
 
+    @staticmethod
+    def matmul(a: Tensor, b: Tensor) -> Tensor:
+        return _tensor_operation(children=(a, b), operation='matmul')
+
     def __add__(self, other): return _tensor_operation(children=(self, other), operation='add')
     def __sub__(self, other): return _tensor_operation(children=(self, other), operation='subtract')
     def __mul__(self, other): return _tensor_operation(children=(self, other), operation='multiply')
     def __truediv__(self, other): return _tensor_operation(children=(self, other), operation='divide')
+
+    def __matmul__(self, other): return Tensor.matmul(a=self, b=other)
 
     def __neg__(self):
         if self.context.is_constant: return Tensor(data=-self.data)
