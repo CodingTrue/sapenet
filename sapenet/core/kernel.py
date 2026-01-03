@@ -47,9 +47,9 @@ class Kernel:
     def get_call_arguments(self, arguments: Sequence[Tensor], output: Tensor, tensor_map: dict[Tensor]) -> Sequence[str]:
         return (
             X_ID,
+            X_SIZE,
             *(tensor_map[tensor].buffer for tensor in (*arguments, output)),
             *(tensor_map[tensor].offset for tensor in (*arguments, output)),
-            tensor_map[output].work_space_size
         )
 
 class KernelRegistry:
